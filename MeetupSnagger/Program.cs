@@ -8,6 +8,7 @@ namespace MeetupSnagger
 {
     class Program
     {
+        // This key has been invalidated - you'll need to swap out with your own
         readonly static MeetupService meetupService = new MeetupService("64e3b3b757c5e8607f4d565942e43");
 
         static void Main(string[] args)
