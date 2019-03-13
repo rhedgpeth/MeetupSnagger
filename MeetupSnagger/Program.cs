@@ -1,28 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using CsvHelper;
 using MeetupSnagger.Models;
 using MeetupSnagger.Services;
+using MoreLinq;
 
 namespace MeetupSnagger
 {
     class Program
     {
         // This key has been invalidated - you'll need to swap out with your own
-        readonly static MeetupService meetupService = new MeetupService("64e3b3b757c5e8607f4d565942e43");
+        readonly static MeetupService meetupService = new MeetupService("<put your key here>");
 
         static void Main(string[] args)
         {
-            /*
+            
             args = new string[7];          
             args[0] = "groups";
             args[1] = "-c";
             args[2] = "34";
             args[3] = "-z";
-            args[4] = "60605";
+            args[4] = "20001"; // "60605" = chicago; "30301" = Atlanta, "10001" = New York, "20001" = DC
             args[5] = "-s";
             args[6] = "android";
-            */
 
             //args = new string[1];
             //args[0] = "categories";
@@ -55,11 +58,43 @@ namespace MeetupSnagger
                         }
                     }
 
-                    GetGroups(cid, zip, search);
-                }
-            }
+                    var searchTerms = new List<string>
+                    {
+                        "android", "iOS", "apple", "google", "amazon", "aws",
+                        "microsoft", "azure", "docker", "kubernetes", ".net",
+                        "python", "kotlin", "GCP", "GDP", "ruby",
+                        "php", "golang", "java", "cloud", "web", "tech",
+                        "technology", "code", "programmer", "developer",
+                        "software", "xamarin", "big data", "analytics",
+                        "database", "nosql", "javascript"
+                    };
+                    var groups = new List<SpreadsheetGroupView>();
+                    foreach (var term in searchTerms)
+                    {
+                        Console.WriteLine($"Searching for '{term}'...");
+                        Console.WriteLine();
+                        var rawGroups = GetGroups(cid, zip, term).Result;
+                        rawGroups.ForEach(r => groups.Add(new SpreadsheetGroupView
+                        {
+                            City = r.City,
+                            Name = r.Name,
+                            Size = r.Members.ToString(),
+                            Url = $"https://www.meetup.com/{r.UrlName}"
+                        }));
 
-            Console.ReadKey();
+                        using (var writer = new StreamWriter("output.csv"))
+                        {
+                            using (var csv = new CsvWriter(writer))
+                            {
+                                csv.WriteRecords(groups.DistinctBy(g => g.Url));
+                            }
+                        }
+
+                    }
+                }
+
+                Console.ReadKey();
+            }
         }
 
         static async void GetCategories()
@@ -79,7 +114,7 @@ namespace MeetupSnagger
             }
         }
 
-        static async void GetGroups(string categoryId, string zipcode, string searchTerm)
+        static async Task<List<Group>> GetGroups(string categoryId, string zipcode, string searchTerm)
         {
             Group[] groups;
 
@@ -121,6 +156,8 @@ namespace MeetupSnagger
                 Console.WriteLine($"Members:  {group.Members}");
                 Console.WriteLine("***********************************************************************");
             }
+
+            return groups.ToList();
         }
     }
 }
